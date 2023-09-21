@@ -1,23 +1,5 @@
-const inquirer = require('inquirer');
-const storageData = require('./js/connection');
-const userPrompt = require('./js/userPrompt');
+const { promptUser } = require('./js/userPrompt');
+const { storageData, afterConnection } = require('./js/connection');
 
-userPrompt()
+afterConnection();
 
-
-storageData.connect((err => {
-  if (err) {
-    console.error('Error connection to the Data Base:', err);
-  }else {
-    afterConnection();
-  }
-}));
-
-const afterConnection = () => {
-  console.log('***********************************');
-  console.log('*                                 *');
-  console.log('*        EMPLOYEE MANAGER         *');
-  console.log('*                                 *');
-  console.log('***********************************');
-  promptUser();
-};
