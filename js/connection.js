@@ -4,21 +4,21 @@ const dotenv = require('dotenv');
 // Load environment variables from .env file
 dotenv.config();
 
-const storageData = mysql.createConnection({
+const connection = mysql.createConnection({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_DATABASE
 });
 
-storageData.connect((err) => {
+connection.connect((err) => {
   if (err) {
-    console.error('Error connecting to the Data Base:', err);
+    console.error('Error connecting to the database:', err);
     throw err;
   }
-  console.log('Connected to the Data Base.');
+  console.log('Connected to the database.');
 });
 
-module.exports = storageData;
+module.exports = connection;
 
 
