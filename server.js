@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 const mysql = require('mysql2');
 const inquirer = require('inquirer');
 const dotenv = require('dotenv');
@@ -42,7 +41,7 @@ const promptUser = () => {
           'Delete a role',
           'Delete an employee',
           'View department budgets',
-          'No Action'
+          'Exit' // Add an "Exit" option
         ]
       }
     ])
@@ -92,12 +91,12 @@ const handleUserChoice = (answers) => {
     case 'View department budgets':
       viewBudget();
       break;
-    case 'No Action':
-      storageData.end();
-      break;
-    default:
-      console.log('Invalid choice');
-      break;
+      case 'Exit':
+        storageData.end(); // Close the database connection and exit the application
+        break;
+      default:
+        console.log('Invalid choice');
+        break;
   }
 };
 
@@ -297,71 +296,78 @@ const addEmployee = () => {
 
 
 
-const updateEmployee = (updateType) => {
-  const employeeSql = 'SELECT * FROM employee';
-  storageData.promise().query(employeeSql)
-    .then(([data]) => {
-      const employees = data.map(({ id, first_name, last_name }) => ({ name: `${first_name} ${last_name}`, value: id }));
+const updateEmployee = async (updateType) => {
+  try {
+    const [employeeRows] = await storageData.promise().query('SELECT * FROM employee');
+    const employees = employeeRows.map(({ id, first_name, last_name }) => ({
+      name: `${first_name} ${last_name}`,
+      value: id,
+    }));
 
-      inquirer.prompt([
+    const { selectedEmployee } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'selectedEmployee',
+        message: 'Which employee would you like to update?',
+        choices: employees,
+      },
+    ]);
+
+    const params = [];
+
+    if (updateType === 'role') {
+      const [roleRows] = await storageData.promise().query('SELECT * FROM role');
+      const roles = roleRows.map(({ id, title }) => ({ name: title, value: id }));
+
+      const { selectedRole } = await inquirer.prompt([
         {
           type: 'list',
-          name: 'name',
-          message: "Which employee would you like to update?",
-          choices: employees
-        }
-      ]).then((empChoice) => {
-        const employee = empChoice.name;
-        const params = [];
-        params.push(employee);
+          name: 'selectedRole',
+          message: "What is the employee's new role?",
+          choices: roles,
+        },
+      ]);
 
-        const roleSql = 'SELECT * FROM role';
-          storageData.promise().query(roleSql)
-          .then(([data]) => {
-            const roles = data.map(({ id, title }) => ({ name: title, value: id }));
+      params.push(selectedRole);
+    } else if (updateType === 'manager') {
+      const [managerRows] = await storageData.promise().query('SELECT * FROM employee');
+      const managers = managerRows.map(({ id, first_name, last_name }) => ({
+        name: `${first_name} ${last_name}`,
+        value: id,
+      }));
 
-            inquirer.prompt([
-              {
-                type: 'list',
-                name: 'role',
-                message: `What is the employee's new ${updateType}?`,
-                choices: updateType === 'role' ? roles : employees
-              }
-            ]).then((roleChoice) => {
-              const role = roleChoice.role;
-              params.push(role);
+      const { selectedManager } = await inquirer.prompt([
+        {
+          type: 'list',
+          name: 'selectedManager',
+          message: "Who is the employee's new manager?",
+          choices: managers,
+        },
+      ]);
 
-              let targetField = 'role_id';
-              if (updateType === 'manager') {
-                targetField = 'manager_id';
-              }
+      params.push(selectedManager);
+    }
 
-              params[0] = role;
-              params[1] = params[0];
+    params.push(selectedEmployee);
 
-              const sql = `UPDATE employee SET ${targetField} = ? WHERE id = ?`;
-                storageData.promise().query(sql, params)
-                .then(() => {
-                  console.log(`Employee ${updateType} has been updated!`);
-                  showEmployees();
-                })
-                .catch((err) => {
-                  console.error(err);
-                  promptUser();
-                });
-            });
-          })
-          .catch((err) => {
-            console.error(err);
-            promptUser();
-          });
-      });
-    })
-    .catch((err) => {
-      console.error(err);
-      promptUser();
-    });
+    let targetField = 'role_id';
+    if (updateType === 'manager') {
+      targetField = 'manager_id';
+    }
+
+    const updateSql = `UPDATE employee SET ${targetField} = ? WHERE id = ?`;
+
+    await storageData.promise().query(updateSql, params);
+
+    console.log(`Employee ${updateType} has been updated!`);
+    showEmployees();
+  } catch (err) {
+    console.error(err);
+    promptUser();
+  }
 };
+
+
 
 
 const employeeDepartment = () => {
@@ -371,45 +377,45 @@ const employeeDepartment = () => {
                   LEFT JOIN department ON role.department_id = department.id`);
 };
 
-const deleteRecord = (recordType) => {
-  const sql = `SELECT * FROM ${recordType}`;
-  storageData.promise().query(sql, (err, data) => {
-    if (err) throw err;
+const deleteRecord = async (recordType) => {
+  try {
+    const [dataRows] = await storageData.promise().query(`SELECT * FROM ${recordType}`);
+    const records = dataRows.map(({ id, name }) => ({ name, value: id }));
 
-    const records = data.map(({ id, name }) => ({ name, value: id }));
-
-    inquirer.prompt([
+    const { record: selectedRecord } = await inquirer.prompt([
       {
         type: 'list',
         name: 'record',
         message: `Which ${recordType} do you want to delete?`,
-        choices: records
-      }
-    ]).then((recordChoice) => {
-      const record = recordChoice.record;
-      const deleteSql = `DELETE FROM ${recordType} WHERE id = ?`;
+        choices: records,
+      },
+    ]);
 
-      storageData.query(deleteSql, record, (err) => {
-        if (err) throw err;
-        console.log(`Successfully deleted ${recordType}!`);
+    const deleteSql = `DELETE FROM ${recordType} WHERE id = ?`;
 
-        switch (recordType) {
-          case 'department':
-            showDepartments();
-            break;
-          case 'role':
-            showRoles();
-            break;
-          case 'employee':
-            showEmployees();
-            break;
-          default:
-            promptUser();
-        }
-      });
-    });
-  });
+    await storageData.promise().query(deleteSql, selectedRecord);
+
+    console.log(`Successfully deleted ${recordType}!`);
+
+    switch (recordType) {
+      case 'department':
+        showDepartments();
+        break;
+      case 'role':
+        showRoles();
+        break;
+      case 'employee':
+        showEmployees();
+        break;
+      default:
+        promptUser();
+    }
+  } catch (err) {
+    console.error(err);
+    promptUser();
+  }
 };
+
 
 const viewBudget = () => {
   queryAndDisplay(`SELECT department_id AS id, department.name AS department, SUM(salary) AS budget
@@ -434,10 +440,3 @@ const afterConnection = () => {
   console.log('***********************************');
   promptUser();
 };
-=======
-const { promptUser } = require('./js/userPrompt');
-const { storageData, afterConnection } = require('./js/connection');
-
-afterConnection();
-
->>>>>>> ae7c767b08299a87518b3397420cf55746a7c536
