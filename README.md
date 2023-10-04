@@ -54,7 +54,7 @@ N/A
 
 ## Links
 
-- [Live Demo](https://www.youtube.com/watch?v=6wvnh1G85s8)
+- [Live Demo](https://www.youtube.com/watch?v=mYwKFdeBUPg)
 - [GitHub Repository](https://github.com/2dogsandaguy/employee-info)
 
 
